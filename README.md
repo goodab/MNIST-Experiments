@@ -1,3 +1,5 @@
+Disclaimer: This repository is shamelessly cloned from github.com/googlecloudplatform/cloudml-dist-mnist-example, with minor edits made to improve my personal understanding of different CNN models. 
+
 # Cloud MLE and GCE compatible TensorFlow distributed training example
 
 Disclaimer: This is not an official Google product.
