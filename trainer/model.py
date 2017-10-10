@@ -59,10 +59,16 @@ def get_input_fn(filename, batch_size=100):
 
 
 def _cnn_model_fn(features, labels, mode):
+  #We've changed the model from one series of CNNs to two in parallel
+  # One path will look at smaller features than the other layer (3x3 instead of 5x5)
+  #			CNN 1 Path 1 -- pooling -- CNN2 path 1 -- pooling	
+  #	Input <													> Filter Concatenation -> Dense layer
+  #			CNN 1 Path 2 -- pooling -- CNN2 path 2 -- pooling
+  
   # Input Layer
   input_layer = tf.reshape(features['inputs'], [-1, 28, 28, 1])
 
-  # Convolutional Layer #1
+  # Convolutional Layer #1, path 1
   conv1 = tf.layers.conv2d(
       inputs=input_layer,
       filters=32,
@@ -72,19 +78,43 @@ def _cnn_model_fn(features, labels, mode):
 
   # Pooling Layer #1
   pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+  # Result from 2x2 pooling on 28x28 point image is 14x14
 
-  # Convolutional Layer #2 and Pooling Layer #2
+  # Convolutional Layer #1, path 2
+  conv1b = tf.layers.conv2d(
+      inputs=input_layer,
+      filters=32,
+      kernel_size=[3, 3],
+      padding='same',
+      activation=tf.nn.relu)
+  pool1b = tf.layers.max_pooling2d(inputs=conv1b, pool_size=[2, 2], strides=2)
+  
+  # Convolutional Layer #2, path 1
   conv2 = tf.layers.conv2d(
       inputs=pool1,
-      filters=64,
+      filters=32,
       kernel_size=[5, 5],
       padding='same',
       activation=tf.nn.relu)
   pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-
+  
+  # Convolutional Layer #2, path 2
+  conv2b = tf.layers.conv2d(
+      inputs=pool1b,
+      filters=32,
+      kernel_size=[3, 3],
+      padding='same',
+      activation=tf.nn.relu)
+  pool2b = tf.layers.max_pooling2d(inputs=conv2b, pool_size=[2, 2], strides=2)
+  
+  # Filter Concatenation
+  # Before concatenation, we have two tensors of shape 7x7x32
+  filter_concat = tf.concat([pool2, pool2b], 3)
+  #
+  
   # Dense Layer
-  pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
-  dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
+  pooled_flat = tf.reshape(filter_concat, [-1, 7 * 7 * 64])
+  dense = tf.layers.dense(inputs=pooled_flat, units=1024, activation=tf.nn.relu)
   dropout = tf.layers.dropout(
       inputs=dense, rate=0.4, training=(mode == Modes.TRAIN))
 
